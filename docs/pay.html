@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LumenFilm UPI Checkout</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    body { background:#0B0B0D; color:#F5F5F7; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; margin:0; padding:24px; }
+    .card { max-width:440px; margin:20px auto; background:#15151A; border:1px solid #2A2A34; border-radius:16px; padding:24px; }
+    .brand { color:#D4A040; font-size:12px; letter-spacing:2px; font-weight:700; text-transform:uppercase; }
+    h1 { margin:8px 0 4px; font-size:24px; }
+    .meta { color:#A1A1AA; font-size:13px; margin-bottom:20px; }
+    .box { background:#1D1D24; border-radius:12px; padding:14px 16px; margin-bottom:16px; }
+    .row { display:flex; justify-content:space-between; font-size:14px; margin:6px 0; }
+    .price { font-size:20px; font-weight:700; color:#D4A040; }
+    .note { font-size:12px; color:#8E8E98; line-height:1.5; margin-bottom:16px; }
+    .status { font-size:13px; color:#F7D78A; margin-bottom:14px; min-height:20px; }
+    .btn { width:100%; background:#D4A040; color:#111114; font-weight:700; font-size:15px; border:none; border-radius:12px; padding:14px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">LumenFilm UPI Checkout</div>
+    <h1 id="planTitle">LumenFilm Membership</h1>
+    <div class="meta" id="planMeta">Preparing checkout...</div>
+    <div class="box">
+      <div class="row"><span>Plan</span><strong id="rowPlan">-</strong></div>
+      <div class="row"><span>Payment Method</span><span>UPI Only (GPay / PhonePe / Paytm)</span></div>
+      <div class="row"><span>Total Due</span><span class="price" id="rowPrice">-</span></div>
+    </div>
+    <div class="note">
+      After UPI confirmation, your <strong>LUMEN-...</strong> license key activates in-app immediately and is emailed to your account.
+    </div>
+    <div class="status" id="checkoutStatus">Opening Razorpay UPI checkout...</div>
+    <button class="btn" id="payUpiBtn" type="button" onclick="openUpiCheckout()">Pay via UPI</button>
+  </div>
+
+  <script>
+    (function () {
+      var p = new URLSearchParams(window.location.search);
+      var rawApi = (p.get('api') || 'https://lumenfilm-licensing.onrender.com').replace(/\/+$/, '');
+      var apiAllowed =
+        rawApi.indexOf('https://lumenfilm-licensing.onrender.com') === 0 ||
+        rawApi.indexOf('http://127.0.0.1') === 0 ||
+        rawApi.indexOf('http://localhost') === 0;
+      var apiBase = apiAllowed ? rawApi : 'https://lumenfilm-licensing.onrender.com';
+
+      var sessionId = p.get('session_id') || '';
+      var orderId = p.get('order_id') || '';
+      var keyId = p.get('key') || '';
+      var amount = Number(p.get('amount') || 0);
+      var tier = (p.get('tier') || 'LITE').toUpperCase();
+      var cycle = (p.get('cycle') || 'MONTHLY').toUpperCase();
+      var email = p.get('email') || '';
+
+      var names = { LITE: 'Lumen Lite', PLUS: 'Lumen Plus', PRO: 'Lumen Pro' };
+      var planName = names[tier] || 'LumenFilm';
+      var inrLabel = amount > 0 ? ('₹' + Math.round(amount / 100)) : '';
+
+      document.getElementById('planTitle').textContent = planName;
+      document.getElementById('rowPlan').textContent = planName;
+      document.getElementById('rowPrice').textContent = inrLabel || 'INR';
+      document.getElementById('planMeta').textContent =
+        (cycle === 'YEARLY' ? 'Annual Plan (Save 33%)' : 'Monthly Plan') + (email ? (' · ' + email) : '');
+      document.getElementById('payUpiBtn').textContent = 'Pay ' + inrLabel + ' via UPI';
+
+      window.openUpiCheckout = function () {
+        var st = document.getElementById('checkoutStatus');
+        if (!keyId || !orderId || !sessionId) {
+          st.textContent = 'Missing checkout order parameters. Close and retry from app.';
+          return;
+        }
+        if (typeof Razorpay === 'undefined') {
+          st.textContent = 'Could not load Razorpay SDK. Check network connection and retry.';
+          return;
+        }
+        st.textContent = 'Complete payment in your UPI app...';
+        var rzp = new Razorpay({
+          key: keyId,
+          amount: amount,
+          currency: 'INR',
+          name: 'LumenFilm',
+          description: planName + ' (' + cycle + ')',
+          order_id: orderId,
+          prefill: { email: email },
+          notes: { lumen_session_id: sessionId, tier: tier, cycle: cycle },
+          theme: { color: '#D4A040' },
+          webview_intent: true,
+          config: {
+            display: {
+              hide: [
+                { method: 'card' },
+                { method: 'netbanking' },
+                { method: 'wallet' },
+                { method: 'emi' },
+                { method: 'paylater' },
+                { method: 'cardless_emi' },
+                { method: 'app' }
+              ],
+              preferences: { show_default_blocks: true }
+            }
+          },
+          handler: function (response) {
+            st.textContent = 'Verifying UPI payment & issuing instant license key...';
+            fetch(apiBase + '/api/v1/razorpay/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({
+                sessionId: sessionId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data && data.ok) {
+                  st.textContent = 'Activated! License Key: ' + (data.licenseKey || '');
+                  window.location.href = apiBase + '/checkout-success?session_id=' + encodeURIComponent(sessionId);
+                } else {
+                  st.textContent = (data && data.error) || 'Verification pending. Tap VERIFY PAYMENT at top right.';
+                }
+              })
+              .catch(function () {
+                window.location.href = apiBase + '/checkout-success?session_id=' + encodeURIComponent(sessionId);
+              });
+          },
+          modal: {
+            ondismiss: function () {
+              st.textContent = 'UPI checkout dismissed. Tap Pay via UPI to retry.';
+            }
+          }
+        });
+        rzp.on('payment.failed', function (resp) {
+          var reason = (resp && resp.error && (resp.error.description || resp.error.reason)) || 'UPI payment failed';
+          st.textContent = reason + ' — tap Pay via UPI or VERIFY PAYMENT.';
+        });
+        rzp.open();
+      };
+
+      window.addEventListener('load', function () {
+        setTimeout(window.openUpiCheckout, 150);
+      });
+    })();
+  </script>
+</body>
+</html>
