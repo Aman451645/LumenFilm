@@ -44,13 +44,13 @@
       <p>When you purchase or activate a paid subscription plan (Lumen Lite, Plus, or Pro), we collect and process only the minimum data needed to issue and verify your license:</p>
       <ul>
         <li><strong>Account Email Address</strong>: Used to associate your license key, billing receipts, and support requests.</li>
-        <li><strong>One-Way Hardware Device Digest (Fingerprint)</strong>: A cryptographic SHA-256 hash generated locally on-device to enforce device seat limits (1 device for Lite, up to 2 devices for Plus and Pro) and prevent unauthorized APK sharing.</li>
-        <li><strong>APK Signing Digest</strong>: Verified locally and during license checks to protect against tampered builds.</li>
+        <li><strong>One-Way Hardware Device Digest (Fingerprint)</strong>: A cryptographic SHA-256 hash generated locally on-device to enforce device seat limits (2 devices for Lite, 3 for Plus, and 5 for Pro) and prevent unauthorized license sharing.</li>
+        <li><strong>App Signing Digest</strong>: Verified locally and during license checks to protect against tampered builds.</li>
       </ul>
 
       <h2>3. Payments</h2>
       <p>
-        Payments are processed securely by third-party payment gateways (such as <strong>Razorpay</strong> for Indian UPI/cards/netbanking or Stripe for international cards).
+        Payments are processed securely by third-party payment gateways (such as <strong>Razorpay</strong> for Indian UPI payments via PhonePe, Google Pay, Paytm, or BHIM).
         We do <strong>not</strong> collect or store your card numbers, CVV, UPI PINs, or bank login credentials on our servers. Payment processors handle your transaction details under their own PCI-DSS compliant privacy policies.
       </p>
 
